@@ -4,11 +4,14 @@ from pathlib import Path
 
 import click
 from bs4 import BeautifulSoup
+from rich.console import Console
+from rich.progress import track
 from selenium import webdriver
 
+console = Console()
 
-def get_video_urls(username):
-    driver = webdriver.Firefox()
+
+def get_video_urls(driver, username):
     driver.get(f"https://www.tiktok.com/@{username}")
 
     # TODO: check for HTTP 404
@@ -28,21 +31,25 @@ def get_video_urls(username):
 
 
 @click.command()
-# @click.option("--username", prompt="TikTok username", help="The TikTok username to download")
-@click.argument("username")
-def download_user(username):
-    video_urls = get_video_urls(username)
-    print(f"Found {len(video_urls)} videos for {username}")
-    user_subdir = Path(username)
-    user_subdir.mkdir(exist_ok=True)
-    for video_url in video_urls:
-        subprocess.run(
-            [
-                'yt-dlp',
-                video_url
-            ],
-            cwd=user_subdir,
-        )
+@click.argument("usernames", nargs=-1)
+def download_user(usernames):
+    with webdriver.Firefox() as driver:
+        for username in usernames:
+            video_urls = get_video_urls(driver, username)
+            print(f"Found {len(video_urls)} videos for {username}")
+
+            user_subdir = Path(username)
+            user_subdir.mkdir(exist_ok=True)
+            for video_url in track(video_urls, description="Downloading videos", auto_refresh=False):
+                # print()
+                subprocess.run(
+                    [
+                        'yt-dlp',
+                        video_url
+                    ],
+                    cwd=user_subdir,
+                )
+                # TODO: break if the video is already downloaded
 
 
 if __name__ == "__main__":
