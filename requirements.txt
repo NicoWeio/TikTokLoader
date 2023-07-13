@@ -1,0 +1,5 @@
+beautifulsoup4==4.12.2
+click==8.1.4
+rich==13.4.2
+selenium==4.10.0
+yt_dlp==2023.7.6
