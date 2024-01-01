@@ -65,8 +65,11 @@ def get_video_urls_retry(driver, username):
 
 @click.command()
 @click.argument("usernames", nargs=-1)
-@click.option("--auto-discover", "-a", is_flag=True, help="Automatically discover users from the current directory")
-def download_user(usernames, auto_discover):
+@click.option("--auto-discover", is_flag=True, help="Automatically discover users from the current directory")
+# NOTE: Contrary to Instaloader, we are still missing the logic to "scroll" a profile page to load more videos.
+# So for now, get_video_urls is decoupled from --fast-update logic.
+@click.option("--fast-update", is_flag=True, default=True, help="For each target, skip already-downloaded videos. NOTE: This only loosely matches Instaloader's behavior.")
+def download_user(usernames, auto_discover, fast_update):
     if auto_discover:
         assert not usernames, "Cannot use --auto-discover and specify usernames at the same time"
         usernames = [
@@ -88,19 +91,20 @@ def download_user(usernames, auto_discover):
                 console.print(f"Could not download {username}: {e}", style="red")
                 continue
 
-            count_including_downloaded = len(video_urls)
-            # TODO: This might not be 100% reliable as it does not check the file format etc.
-            video_urls = [
-                url
-                for url in video_urls
-                if not any(
-                    f"[{url.split('/')[-1]}]" in str(f)
-                    for f in Path(username).iterdir()
-                )
-            ]
-            count = len(video_urls)
-            if count != count_including_downloaded:
-                console.print(f"Skipping {count_including_downloaded - count} already downloaded videos", style="yellow")
+            if fast_update:
+                count_including_downloaded = len(video_urls)
+                # TODO: This might not be 100% reliable as it does not check the file format etc.
+                video_urls = [
+                    url
+                    for url in video_urls
+                    if not any(
+                        f"[{url.split('/')[-1]}]" in str(f)
+                        for f in Path(username).iterdir()
+                    )
+                ]
+                count = len(video_urls)
+                if count != count_including_downloaded:
+                    console.print(f"Skipping {count_including_downloaded - count} already downloaded videos", style="yellow")
 
             user_subdir = Path(username)
             user_subdir.mkdir(exist_ok=True)
@@ -112,7 +116,6 @@ def download_user(usernames, auto_discover):
                     ],
                     cwd=user_subdir,
                 )
-                # TODO: break if the video is already downloaded
 
 
 if __name__ == "__main__":
